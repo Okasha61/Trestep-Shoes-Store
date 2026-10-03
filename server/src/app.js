@@ -15,10 +15,15 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://trestep-shoes-store-pqta.vercel.app",
+    ],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,6 +46,7 @@ app.use("/api/admin", adminRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || "Server error",
