@@ -1,0 +1,71 @@
+/* =========================================
+   TRESTEP APP GLOBAL STYLES
+========================================= */
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Main page wrapper */
+
+main {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Prevent horizontal overflow */
+
+section {
+  width: 100%;
+}
+
+/* Smooth images */
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Remove default button appearance */
+
+button {
+  font-family: inherit;
+}
+
+/* Links */
+
+a {
+  transition: all 0.3s ease;
+}
+
+/* =========================================
+   PAGE TRANSITION
+========================================= */
+
+.page {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* =========================================
+   COMMON
+========================================= */
+
+.text-green {
+  color: var(--primary);
+}
+
+.bg-black {
+  background: var(--black);
+}
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 768px) {
+  main {
+    overflow-x: hidden;
+  }
+}
