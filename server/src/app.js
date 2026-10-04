@@ -28,8 +28,8 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/api/health", (req, res) => {
-  res.json({ message: "Trestep backend is healthy" });
+app.get("/api/test", (req, res) => {
+  res.json({ message: "working" });
 });
 
 app.use("/api/auth", authRoutes);
