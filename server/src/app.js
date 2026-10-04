@@ -17,20 +17,19 @@ import errorMiddleware from "./middleware/errorMiddleware.js";
 
 const app = express();
 
-/*
- * Frontend URLs allowed to access this backend.
- */
+/* =========================
+   CORS CONFIGURATION
+========================= */
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://trestep-shoes-store-pqta.vercel.app",
 ];
 
-/*
- * CORS configuration
- */
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests that do not have an Origin header.
+    // Allow requests without an Origin header
+    // such as Postman, server-to-server requests, etc.
     if (!origin) {
       return callback(null, true);
     }
@@ -41,9 +40,7 @@ const corsOptions = {
 
     console.error("Blocked CORS origin:", origin);
 
-    return callback(
-      new Error("Not allowed by CORS")
-    );
+    return callback(new Error("Not allowed by CORS"));
   },
 
   credentials: true,
@@ -66,13 +63,15 @@ const corsOptions = {
 };
 
 /*
- * Apply CORS before all API routes.
+ * CORS middleware must come before the routes.
+ * This handles browser preflight OPTIONS requests.
  */
 app.use(cors(corsOptions));
 
-/*
- * Body parsers
- */
+/* =========================
+   BODY PARSERS
+========================= */
+
 app.use(express.json());
 
 app.use(
@@ -81,34 +80,47 @@ app.use(
   })
 );
 
-/*
- * Health/test endpoint
- */
+/* =========================
+   TEST ROUTE
+========================= */
+
 app.get("/api/test", (req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Trestep backend is working",
   });
 });
 
-/*
- * API routes
- */
+/* =========================
+   API ROUTES
+========================= */
+
 app.use("/api/auth", authRoutes);
+
 app.use("/api/products", productRoutes);
+
 app.use("/api/cart", cartRoutes);
+
 app.use("/api/contact", contactRoutes);
+
 app.use("/api/orders", orderRoutes);
+
 app.use("/api/users", userRoutes);
+
 app.use("/api/wishlist", wishlistRoutes);
+
 app.use("/api/categories", categoryRoutes);
+
 app.use("/api/blogs", blogRoutes);
+
 app.use("/api/reviews", reviewRoutes);
+
 app.use("/api/admin", adminRoutes);
 
-/*
- * Global error handler
- */
+/* =========================
+   ERROR HANDLER
+========================= */
+
 app.use(errorMiddleware);
 
 export default app;
