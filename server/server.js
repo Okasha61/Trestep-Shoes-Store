@@ -17,8 +17,6 @@ const handler = async (req, res) => {
   } catch (error) {
     console.error("Server error:", error);
 
-    // Allow another request to retry the connection
-    // if the previous connection attempt failed.
     dbConnectionPromise = null;
 
     return res.status(500).json({
