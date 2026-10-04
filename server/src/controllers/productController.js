@@ -1,29 +1,35 @@
+import mongoose from "mongoose";
 import Product from "../models/Product.js";
-
 import Category from "../models/Category.js";
 
-import {
-  uploadToCloudinary,
-} from "../middleware/uploadMiddleware.js";
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 
 // ======================================================
 // HELPERS
 // ======================================================
 
 const parseArray = (value) => {
-  if (!value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
     return [];
   }
 
   if (Array.isArray(value)) {
-    return value;
+    return value
+      .map((item) => String(item).trim())
+      .filter(Boolean);
   }
 
   try {
     const parsed = JSON.parse(value);
 
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed
+        .map((item) => String(item).trim())
+        .filter(Boolean);
     }
   } catch {
     // Continue below
@@ -36,11 +42,15 @@ const parseArray = (value) => {
 };
 
 // ======================================================
-// PARSE BOOLEAN
+// PARSE COLOR IMAGE MAP
 // ======================================================
 
 const parseColorImageMap = (value) => {
-  if (!value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
     return [];
   }
 
@@ -57,49 +67,16 @@ const parseColorImageMap = (value) => {
   }
 };
 
-const buildColorImagesFromFiles = async (colorMap, files = []) => {
-  const map = parseColorImageMap(colorMap);
-
-  if (!map.length) {
-    return [];
-  }
-
-  const uploadedImages = await Promise.all(
-    files.map((file) => uploadToCloudinary(file.buffer))
-  );
-
-  let fileIndex = 0;
-
-  return map.map((entry) => {
-    const color = String(entry?.color || "").trim();
-
-    const existingImages = Array.isArray(entry?.existingImages)
-      ? entry.existingImages.filter(Boolean)
-      : [];
-
-    const newImageCount = Math.max(
-      0,
-      Number(entry?.newImageCount || 0)
-    );
-
-    const newImages = uploadedImages.slice(
-      fileIndex,
-      fileIndex + newImageCount
-    );
-
-    fileIndex += newImageCount;
-
-    return {
-      color,
-      images: [...existingImages, ...newImages],
-    };
-  }).filter((entry) => entry.color);
-};
+// ======================================================
+// PARSE BOOLEAN
+// ======================================================
 
 const parseBoolean = (value) => {
   if (
     value === true ||
-    value === "true"
+    value === "true" ||
+    value === 1 ||
+    value === "1"
   ) {
     return true;
   }
@@ -111,28 +88,12 @@ const parseBoolean = (value) => {
 // ESCAPE REGEX
 // ======================================================
 
-const escapeRegex = (value) => {
-  return String(value).replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
+const escapeRegex = (value = "") => {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
 // ======================================================
 // NORMALIZE GENDER
-// ======================================================
-// Returns canonical Product/Category value:
-// "Men" or "Women"
-//
-// Accepts:
-// men
-// Men
-// MEN
-// male
-// women
-// Women
-// WOMEN
-// female
 // ======================================================
 
 const normalizeGender = (value) => {
@@ -158,6 +119,123 @@ const normalizeGender = (value) => {
 };
 
 // ======================================================
+// NUMBER HELPER
+// ======================================================
+
+const parseNumber = (value, fieldName) => {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return {
+      valid: false,
+      value: null,
+      message: `${fieldName} is required`,
+    };
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return {
+      valid: false,
+      value: null,
+      message: `${fieldName} must be a valid number`,
+    };
+  }
+
+  return {
+    valid: true,
+    value: number,
+  };
+};
+
+// ======================================================
+// UPLOAD COLOR IMAGES
+// ======================================================
+
+const buildColorImagesFromFiles = async (
+  colorMap,
+  files = []
+) => {
+  const map = parseColorImageMap(colorMap);
+
+  if (!map.length) {
+    return [];
+  }
+
+  const newImageCounts = map.map((entry) =>
+    Math.max(
+      0,
+      Number(entry?.newImageCount || 0)
+    )
+  );
+
+  const totalExpectedFiles =
+    newImageCounts.reduce(
+      (sum, count) => sum + count,
+      0
+    );
+
+  if (totalExpectedFiles > files.length) {
+    throw new Error(
+      "Color image mapping does not match uploaded files"
+    );
+  }
+
+  let fileIndex = 0;
+
+  const result = [];
+
+  for (let index = 0; index < map.length; index += 1) {
+    const entry = map[index];
+
+    const color = String(
+      entry?.color || ""
+    ).trim();
+
+    if (!color) {
+      continue;
+    }
+
+    const existingImages =
+      Array.isArray(entry?.existingImages)
+        ? entry.existingImages.filter(Boolean)
+        : [];
+
+    const newImageCount =
+      newImageCounts[index];
+
+    const currentFiles = files.slice(
+      fileIndex,
+      fileIndex + newImageCount
+    );
+
+    fileIndex += newImageCount;
+
+    const newImages = await Promise.all(
+      currentFiles.map((file) =>
+        uploadToCloudinary(
+          file.buffer,
+          "trestep/products"
+        )
+      )
+    );
+
+    result.push({
+      color,
+      images: [
+        ...existingImages,
+        ...newImages,
+      ],
+    });
+  }
+
+  return result;
+};
+
+// ======================================================
 // VALIDATE CATEGORY + SUB CATEGORY
 // ======================================================
 
@@ -169,8 +247,7 @@ const validateProductCategory = async ({
   if (!gender || !category) {
     return {
       valid: false,
-      message:
-        "Gender and category are required",
+      message: "Gender and category are required",
     };
   }
 
@@ -185,6 +262,10 @@ const validateProductCategory = async ({
     };
   }
 
+  const cleanCategory = String(
+    category
+  ).trim();
+
   const categoryDoc =
     await Category.findOne({
       gender: {
@@ -196,7 +277,7 @@ const validateProductCategory = async ({
 
       name: {
         $regex: `^${escapeRegex(
-          String(category).trim()
+          cleanCategory
         )}$`,
         $options: "i",
       },
@@ -207,19 +288,15 @@ const validateProductCategory = async ({
   if (!categoryDoc) {
     return {
       valid: false,
-      message: `Category "${category}" does not exist for ${normalizedGender}`,
+      message: `Category "${cleanCategory}" does not exist for ${normalizedGender}`,
     };
   }
-
-  // ==================================================
-  // ACTUAL CATEGORY NAME FROM DATABASE
-  // ==================================================
 
   const actualCategoryName =
     categoryDoc.name;
 
   // ==================================================
-  // NO SUB-CATEGORY SELECTED
+  // NO SUB-CATEGORY
   // ==================================================
 
   if (
@@ -228,8 +305,7 @@ const validateProductCategory = async ({
   ) {
     return {
       valid: true,
-      categoryName:
-        actualCategoryName,
+      categoryName: actualCategoryName,
       subCategoryName: "",
     };
   }
@@ -238,34 +314,28 @@ const validateProductCategory = async ({
   // FIND SUB-CATEGORY
   // ==================================================
 
+  const cleanSubCategory =
+    String(subCategory).trim();
+
   const selectedSubCategory =
     categoryDoc.subCategories?.find(
       (item) =>
         item?.name
           ?.trim()
           .toLowerCase() ===
-        String(subCategory)
-          .trim()
-          .toLowerCase()
+        cleanSubCategory.toLowerCase()
     );
 
   if (!selectedSubCategory) {
     return {
       valid: false,
-      message: `Sub-category "${subCategory}" does not belong to ${normalizedGender} ${actualCategoryName}`,
+      message: `Sub-category "${cleanSubCategory}" does not belong to ${normalizedGender} ${actualCategoryName}`,
     };
   }
 
-  // ==================================================
-  // RETURN CANONICAL DATABASE VALUES
-  // ==================================================
-
   return {
     valid: true,
-
-    categoryName:
-      actualCategoryName,
-
+    categoryName: actualCategoryName,
     subCategoryName:
       selectedSubCategory.name,
   };
@@ -302,9 +372,17 @@ export const createProduct = async (
     // BASIC VALIDATION
     // ==================================================
 
+    const cleanName = String(
+      name || ""
+    ).trim();
+
+    const cleanDescription = String(
+      description || ""
+    ).trim();
+
     if (
-      !name ||
-      !description ||
+      !cleanName ||
+      !cleanDescription ||
       price === undefined ||
       !gender ||
       !category
@@ -314,6 +392,100 @@ export const createProduct = async (
         message:
           "Name, description, price, gender and category are required",
       });
+    }
+
+    // ==================================================
+    // PRICE
+    // ==================================================
+
+    const parsedPrice = parseNumber(
+      price,
+      "Price"
+    );
+
+    if (!parsedPrice.valid) {
+      return res.status(400).json({
+        success: false,
+        message: parsedPrice.message,
+      });
+    }
+
+    if (parsedPrice.value < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price cannot be negative",
+      });
+    }
+
+    // ==================================================
+    // OLD PRICE
+    // ==================================================
+
+    let parsedOldPrice = 0;
+
+    if (
+      oldPrice !== undefined &&
+      oldPrice !== null &&
+      oldPrice !== ""
+    ) {
+      const result = parseNumber(
+        oldPrice,
+        "Old price"
+      );
+
+      if (!result.valid) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      if (result.value < 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Old price cannot be negative",
+        });
+      }
+
+      parsedOldPrice = result.value;
+    }
+
+    // ==================================================
+    // STOCK
+    // ==================================================
+
+    let parsedStock = 0;
+
+    if (
+      stock !== undefined &&
+      stock !== null &&
+      stock !== ""
+    ) {
+      const result = parseNumber(
+        stock,
+        "Stock"
+      );
+
+      if (!result.valid) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      if (
+        result.value < 0 ||
+        !Number.isInteger(result.value)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Stock must be a non-negative whole number",
+        });
+      }
+
+      parsedStock = result.value;
     }
 
     // ==================================================
@@ -351,24 +523,40 @@ export const createProduct = async (
     }
 
     // ==================================================
-    // UPLOAD IMAGES
+    // IMAGES
     // ==================================================
 
     let images = [];
     let colorImages = [];
 
-    if (req.files?.length) {
+    if (req.body.colorImageMap !== undefined) {
+      /*
+        IMPORTANT:
+
+        When colorImageMap exists, the uploaded files
+        belong to the color-image mapping.
+
+        We DO NOT upload req.files separately first,
+        otherwise the same files would be uploaded twice.
+      */
+
+      colorImages =
+        await buildColorImagesFromFiles(
+          req.body.colorImageMap,
+          req.files || []
+        );
+
+      images = colorImages.flatMap(
+        (entry) => entry.images || []
+      );
+    } else if (req.files?.length) {
       images = await Promise.all(
         req.files.map((file) =>
-          uploadToCloudinary(file.buffer)
+          uploadToCloudinary(
+            file.buffer,
+            "trestep/products"
+          )
         )
-      );
-    }
-
-    if (req.body.colorImageMap) {
-      colorImages = await buildColorImagesFromFiles(
-        req.body.colorImageMap,
-        req.files || []
       );
     }
 
@@ -378,21 +566,15 @@ export const createProduct = async (
 
     const product =
       await Product.create({
-        name: name.trim(),
+        name: cleanName,
 
         description:
-          description.trim(),
+          cleanDescription,
 
-        price: Number(price),
+        price: parsedPrice.value,
 
-        oldPrice: Number(
-          oldPrice || 0
-        ),
+        oldPrice: parsedOldPrice,
 
-        // IMPORTANT:
-        // Save "Men" / "Women"
-        // because Product.js enum uses
-        // ["Men", "Women"].
         gender: normalizedGender,
 
         category:
@@ -401,7 +583,9 @@ export const createProduct = async (
         subCategory:
           categoryValidation.subCategoryName,
 
-        sport: sport || "",
+        sport: String(
+          sport || ""
+        ).trim(),
 
         colors: parseArray(
           req.body.colors
@@ -415,20 +599,13 @@ export const createProduct = async (
 
         images,
 
-        rating: Number(
-          rating || 0
-        ),
+        rating: 0,
 
-        reviews: Number(
-          reviews || 0
-        ),
+        reviews: 0,
 
-        stock: Number(
-          stock || 0
-        ),
+        stock: parsedStock,
 
-        isNew:
-          parseBoolean(isNew),
+        isNew: parseBoolean(isNew),
 
         isTrending:
           parseBoolean(isTrending),
@@ -439,10 +616,8 @@ export const createProduct = async (
 
     return res.status(201).json({
       success: true,
-
       message:
         "Product created successfully",
-
       product,
     });
   } catch (error) {
@@ -498,7 +673,7 @@ export const getProducts = async (
     if (category) {
       filter.category = {
         $regex: `^${escapeRegex(
-          category
+          String(category).trim()
         )}$`,
         $options: "i",
       };
@@ -511,7 +686,7 @@ export const getProducts = async (
     if (subCategory) {
       filter.subCategory = {
         $regex: `^${escapeRegex(
-          subCategory
+          String(subCategory).trim()
         )}$`,
         $options: "i",
       };
@@ -524,7 +699,7 @@ export const getProducts = async (
     if (sport) {
       filter.sport = {
         $regex: `^${escapeRegex(
-          sport
+          String(sport).trim()
         )}$`,
         $options: "i",
       };
@@ -536,17 +711,20 @@ export const getProducts = async (
 
     if (isNew !== undefined) {
       filter.isNew =
-        isNew === "true";
+        String(isNew).toLowerCase() ===
+        "true";
     }
 
     if (isTrending !== undefined) {
       filter.isTrending =
-        isTrending === "true";
+        String(isTrending).toLowerCase() ===
+        "true";
     }
 
     if (isBestSeller !== undefined) {
       filter.isBestSeller =
-        isBestSeller === "true";
+        String(isBestSeller).toLowerCase() ===
+        "true";
     }
 
     // ==================================================
@@ -555,7 +733,9 @@ export const getProducts = async (
 
     if (search) {
       const escapedSearch =
-        escapeRegex(search);
+        escapeRegex(
+          String(search).trim()
+        );
 
       filter.$or = [
         {
@@ -564,7 +744,6 @@ export const getProducts = async (
             $options: "i",
           },
         },
-
         {
           description: {
             $regex: escapedSearch,
@@ -583,11 +762,9 @@ export const getProducts = async (
         createdAt: -1,
       });
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-
       count: products.length,
-
       products,
     });
   } catch (error) {
@@ -605,6 +782,17 @@ export const getProduct = async (
   next
 ) => {
   try {
+    if (
+      !mongoose.isValidObjectId(
+        req.params.id
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
     const product =
       await Product.findById(
         req.params.id
@@ -618,7 +806,7 @@ export const getProduct = async (
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       product,
     });
@@ -637,14 +825,19 @@ export const updateProduct = async (
   next
 ) => {
   try {
-    // ==================================================
-    // FIND PRODUCT
-    // ==================================================
+    const { id } = req.params;
+
+    if (
+      !mongoose.isValidObjectId(id)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
 
     const product =
-      await Product.findById(
-        req.params.id
-      );
+      await Product.findById(id);
 
     if (!product) {
       return res.status(404).json({
@@ -655,35 +848,55 @@ export const updateProduct = async (
     }
 
     // ==================================================
-    // COPY REQUEST DATA
+    // BASIC TEXT VALUES
     // ==================================================
 
-    const data = {
-      ...req.body,
-    };
+    const updatedName =
+      req.body.name !== undefined
+        ? String(req.body.name).trim()
+        : product.name;
+
+    const updatedDescription =
+      req.body.description !== undefined
+        ? String(
+            req.body.description
+          ).trim()
+        : product.description;
+
+    if (!updatedName) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Product name is required",
+      });
+    }
+
+    if (!updatedDescription) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Product description is required",
+      });
+    }
 
     // ==================================================
-    // UPDATED CATEGORY VALUES
+    // CATEGORY VALUES
     // ==================================================
 
     const updatedGender =
-      data.gender !== undefined
-        ? data.gender
+      req.body.gender !== undefined
+        ? req.body.gender
         : product.gender;
 
     const updatedCategory =
-      data.category !== undefined
-        ? data.category
+      req.body.category !== undefined
+        ? req.body.category
         : product.category;
 
     const updatedSubCategory =
-      data.subCategory !== undefined
-        ? data.subCategory
+      req.body.subCategory !== undefined
+        ? req.body.subCategory
         : product.subCategory;
-
-    // ==================================================
-    // NORMALIZE GENDER
-    // ==================================================
 
     const normalizedGender =
       normalizeGender(
@@ -705,10 +918,7 @@ export const updateProduct = async (
     const categoryValidation =
       await validateProductCategory({
         gender: normalizedGender,
-
-        category:
-          updatedCategory,
-
+        category: updatedCategory,
         subCategory:
           updatedSubCategory,
       });
@@ -722,161 +932,236 @@ export const updateProduct = async (
     }
 
     // ==================================================
-    // SAVE CANONICAL CATEGORY VALUES
+    // UPDATE DATA
     // ==================================================
 
-    data.gender =
-      normalizedGender;
+    const data = {
+      name: updatedName,
 
-    data.category =
-      categoryValidation.categoryName;
+      description:
+        updatedDescription,
 
-    data.subCategory =
-      categoryValidation.subCategoryName;
+      gender: normalizedGender,
+
+      category:
+        categoryValidation.categoryName,
+
+      subCategory:
+        categoryValidation.subCategoryName,
+    };
 
     // ==================================================
-    // NUMBER VALUES
+    // SPORT
     // ==================================================
 
-    if (
-      data.price !== undefined
-    ) {
-      data.price = Number(
-        data.price
+    if (req.body.sport !== undefined) {
+      data.sport = String(
+        req.body.sport
+      ).trim();
+    }
+
+    // ==================================================
+    // NUMBERS
+    // ==================================================
+
+    if (req.body.price !== undefined) {
+      const result = parseNumber(
+        req.body.price,
+        "Price"
       );
+
+      if (!result.valid || result.value < 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            result.message ||
+            "Price cannot be negative",
+        });
+      }
+
+      data.price = result.value;
     }
 
-    if (
-      data.oldPrice !== undefined
-    ) {
-      data.oldPrice =
-        Number(data.oldPrice);
+    if (req.body.oldPrice !== undefined) {
+      if (
+        req.body.oldPrice === ""
+      ) {
+        data.oldPrice = 0;
+      } else {
+        const result = parseNumber(
+          req.body.oldPrice,
+          "Old price"
+        );
+
+        if (
+          !result.valid ||
+          result.value < 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              result.message ||
+              "Old price cannot be negative",
+          });
+        }
+
+        data.oldPrice =
+          result.value;
+      }
     }
 
-    if (
-      data.stock !== undefined
-    ) {
-      data.stock = Number(
-        data.stock
+    if (req.body.stock !== undefined) {
+      const result = parseNumber(
+        req.body.stock,
+        "Stock"
       );
+
+      if (
+        !result.valid ||
+        result.value < 0 ||
+        !Number.isInteger(
+          result.value
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Stock must be a non-negative whole number",
+        });
+      }
+
+      data.stock = result.value;
+    }
+
+    // ==================================================
+    // RATING / REVIEWS
+    // ==================================================
+
+    if (req.body.rating !== undefined) {
+      const result = parseNumber(
+        req.body.rating,
+        "Rating"
+      );
+
+      if (
+        !result.valid ||
+        result.value < 0 ||
+        result.value > 5
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Rating must be between 0 and 5",
+        });
+      }
+
+      data.rating = result.value;
     }
 
     if (
-      data.rating !== undefined
+      req.body.reviews !== undefined
     ) {
-      data.rating =
-        Number(data.rating);
-    }
+      const result = parseNumber(
+        req.body.reviews,
+        "Reviews"
+      );
 
-    if (
-      data.reviews !== undefined
-    ) {
-      data.reviews =
-        Number(data.reviews);
+      if (
+        !result.valid ||
+        result.value < 0 ||
+        !Number.isInteger(
+          result.value
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reviews must be a non-negative whole number",
+        });
+      }
+
+      data.reviews = result.value;
     }
 
     // ==================================================
     // ARRAYS
     // ==================================================
 
-    if (
-      data.colors !== undefined
-    ) {
-      data.colors =
-        parseArray(
-          data.colors
-        );
+    if (req.body.colors !== undefined) {
+      data.colors = parseArray(
+        req.body.colors
+      );
     }
 
-    if (
-      data.sizes !== undefined
-    ) {
-      data.sizes =
-        parseArray(
-          data.sizes
-        );
+    if (req.body.sizes !== undefined) {
+      data.sizes = parseArray(
+        req.body.sizes
+      );
     }
 
     // ==================================================
     // BOOLEAN
     // ==================================================
 
-    if (
-      data.isNew !== undefined
-    ) {
+    if (req.body.isNew !== undefined) {
       data.isNew =
         parseBoolean(
-          data.isNew
+          req.body.isNew
         );
     }
 
     if (
-      data.isTrending !== undefined
+      req.body.isTrending !==
+      undefined
     ) {
       data.isTrending =
         parseBoolean(
-          data.isTrending
+          req.body.isTrending
         );
     }
 
     if (
-      data.isBestSeller !==
+      req.body.isBestSeller !==
       undefined
     ) {
       data.isBestSeller =
         parseBoolean(
-          data.isBestSeller
+          req.body.isBestSeller
         );
-    }
-
-    // ==================================================
-    // TRIM TEXT VALUES
-    // ==================================================
-
-    if (
-      typeof data.name ===
-      "string"
-    ) {
-      data.name =
-        data.name.trim();
-    }
-
-    if (
-      typeof data.description ===
-      "string"
-    ) {
-      data.description =
-        data.description.trim();
-    }
-
-    if (
-      typeof data.sport ===
-      "string"
-    ) {
-      data.sport =
-        data.sport.trim();
     }
 
     // ==================================================
     // IMAGES
     // ==================================================
 
-    if (req.body.colorImageMap !== undefined) {
-      data.colorImages = await buildColorImagesFromFiles(
-        req.body.colorImageMap,
-        req.files || []
-      );
+    if (
+      req.body.colorImageMap !==
+      undefined
+    ) {
+      const colorImages =
+        await buildColorImagesFromFiles(
+          req.body.colorImageMap,
+          req.files || []
+        );
 
-      data.images = data.colorImages.flatMap(
-        (entry) => entry.images || []
-      );
-    } else if (req.files?.length) {
+      data.colorImages =
+        colorImages;
+
+      data.images =
+        colorImages.flatMap(
+          (entry) =>
+            entry.images || []
+        );
+    } else if (
+      req.files?.length
+    ) {
       const newImages =
         await Promise.all(
           req.files.map(
             (file) =>
               uploadToCloudinary(
-                file.buffer
+                file.buffer,
+                "trestep/products"
               )
           )
         );
@@ -891,22 +1176,18 @@ export const updateProduct = async (
 
     const updatedProduct =
       await Product.findByIdAndUpdate(
-        req.params.id,
-
+        id,
         data,
-
         {
           new: true,
           runValidators: true,
         }
       );
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-
       message:
         "Product updated successfully",
-
       product:
         updatedProduct,
     });
@@ -925,9 +1206,20 @@ export const deleteProduct = async (
   next
 ) => {
   try {
+    const { id } = req.params;
+
+    if (
+      !mongoose.isValidObjectId(id)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
     const product =
       await Product.findByIdAndDelete(
-        req.params.id
+        id
       );
 
     if (!product) {
@@ -938,9 +1230,8 @@ export const deleteProduct = async (
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-
       message:
         "Product deleted successfully",
     });

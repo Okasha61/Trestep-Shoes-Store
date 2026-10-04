@@ -12,10 +12,38 @@ import crypto from "crypto";
 import { sendEmail } from "../services/emailService.js";
 
 // ======================================================
+// HELPERS
+// ======================================================
+
+const normalizeEmail = (value) => {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+};
+
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
+};
+
+const sanitizeUser = (user) => {
+  return {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+  };
+};
+
+// ======================================================
 // SIGNUP
 // ======================================================
 
-export const signup = async (req, res) => {
+export const signup = async (
+  req,
+  res
+) => {
   try {
     const {
       username,
@@ -23,67 +51,129 @@ export const signup = async (req, res) => {
       password,
     } = req.body;
 
-    if (!username || !email || !password) {
+    const cleanUsername =
+      String(username || "").trim();
+
+    const normalizedEmail =
+      normalizeEmail(email);
+
+    const cleanPassword =
+      String(password || "");
+
+    if (
+      !cleanUsername ||
+      !normalizedEmail ||
+      !cleanPassword
+    ) {
       return res.status(400).json({
         message:
           "Username, email and password are required",
       });
     }
 
-    if (username.trim().length < 3) {
+    if (
+      cleanUsername.length < 3
+    ) {
       return res.status(400).json({
         message:
           "Username must be at least 3 characters",
       });
     }
 
-    if (password.length < 6) {
+    if (
+      cleanUsername.length > 50
+    ) {
+      return res.status(400).json({
+        message:
+          "Username cannot exceed 50 characters",
+      });
+    }
+
+    if (
+      !isValidEmail(normalizedEmail)
+    ) {
+      return res.status(400).json({
+        message:
+          "Please enter a valid email address",
+      });
+    }
+
+    if (
+      cleanPassword.length < 6
+    ) {
       return res.status(400).json({
         message:
           "Password must be at least 6 characters",
       });
     }
 
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
-
-    const existingUser = await User.findOne({
-      email: normalizedEmail,
-    });
+    const existingUser =
+      await User.findOne({
+        email: normalizedEmail,
+      });
 
     if (existingUser) {
       return res.status(409).json({
-        message: "Email already registered",
+        message:
+          "Email already registered",
       });
     }
 
     const hashedPassword =
-      await hashPassword(password);
+      await hashPassword(
+        cleanPassword
+      );
 
     const user = await User.create({
-      username: username.trim(),
+      username: cleanUsername,
       email: normalizedEmail,
       password: hashedPassword,
     });
 
-    const token = generateToken(user._id);
+    const token =
+      generateToken(user._id);
 
     return res.status(201).json({
-      message: "Signup successful",
+      message:
+        "Signup successful",
+
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error(
+      "Signup error:",
+      error
+    );
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message:
+          "Email already registered",
+      });
+    }
+
+    if (
+      error.name ===
+      "ValidationError"
+    ) {
+      return res.status(400).json({
+        message:
+          Object.values(
+            error.errors
+          )
+            .map(
+              (item) =>
+                item.message
+            )
+            .join(", "),
+      });
+    }
 
     return res.status(500).json({
-      message: "Failed to create account",
+      message:
+        "Failed to create account",
     });
   }
 };
@@ -92,63 +182,88 @@ export const signup = async (req, res) => {
 // LOGIN
 // ======================================================
 
-export const login = async (req, res) => {
+export const login = async (
+  req,
+  res
+) => {
   try {
     const {
       email,
       password,
     } = req.body;
 
-    if (!email || !password) {
+    const normalizedEmail =
+      normalizeEmail(email);
+
+    const cleanPassword =
+      String(password || "");
+
+    if (
+      !normalizedEmail ||
+      !cleanPassword
+    ) {
       return res.status(400).json({
         message:
           "Email and password are required",
       });
     }
 
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
+    if (
+      !isValidEmail(
+        normalizedEmail
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          "Please enter a valid email address",
+      });
+    }
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-    });
+    const user =
+      await User.findOne({
+        email: normalizedEmail,
+      });
 
     if (!user) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message:
+          "Invalid email or password",
       });
     }
 
     const passwordMatch =
       await comparePassword(
-        password,
+        cleanPassword,
         user.password
       );
 
     if (!passwordMatch) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message:
+          "Invalid email or password",
       });
     }
 
-    const token = generateToken(user._id);
+    const token =
+      generateToken(user._id);
 
     return res.status(200).json({
-      message: "Login successful",
+      message:
+        "Login successful",
+
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(
+      "Login error:",
+      error
+    );
 
     return res.status(500).json({
-      message: "Failed to login",
+      message:
+        "Failed to login",
     });
   }
 };
@@ -157,31 +272,35 @@ export const login = async (req, res) => {
 // GET ME
 // ======================================================
 
-export const getMe = async (req, res) => {
+export const getMe = async (
+  req,
+  res
+) => {
   try {
-    const user = await User.findById(
-      req.user._id
-    ).select("-password");
+    const user =
+      await User.findById(
+        req.user._id
+      ).select("-password");
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found",
+        message:
+          "User not found",
       });
     }
 
     return res.status(200).json({
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.error("Get me error:", error);
+    console.error(
+      "Get me error:",
+      error
+    );
 
     return res.status(500).json({
-      message: "Failed to get user",
+      message:
+        "Failed to get user",
     });
   }
 };
@@ -200,27 +319,40 @@ export const updateProfile = async (
       email,
     } = req.body;
 
-    const user = await User.findById(
-      req.user._id
-    );
+    const user =
+      await User.findById(
+        req.user._id
+      );
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found",
+        message:
+          "User not found",
       });
     }
 
-    // ----------------------------------------------
+    // ==================================================
     // USERNAME
-    // ----------------------------------------------
+    // ==================================================
 
     if (username !== undefined) {
+      if (
+        typeof username !==
+        "string"
+      ) {
+        return res.status(400).json({
+          message:
+            "Name must be a valid text value",
+        });
+      }
+
       const trimmedUsername =
         username.trim();
 
       if (!trimmedUsername) {
         return res.status(400).json({
-          message: "Name is required",
+          message:
+            "Name is required",
         });
       }
 
@@ -234,27 +366,50 @@ export const updateProfile = async (
         });
       }
 
-      user.username = trimmedUsername;
+      user.username =
+        trimmedUsername;
     }
 
-    // ----------------------------------------------
+    // ==================================================
     // EMAIL
-    // ----------------------------------------------
+    // ==================================================
 
     if (email !== undefined) {
-      const normalizedEmail = email
-        .trim()
-        .toLowerCase();
+      if (
+        typeof email !== "string"
+      ) {
+        return res.status(400).json({
+          message:
+            "Email must be a valid text value",
+        });
+      }
+
+      const normalizedEmail =
+        normalizeEmail(email);
 
       if (!normalizedEmail) {
         return res.status(400).json({
-          message: "Email is required",
+          message:
+            "Email is required",
+        });
+      }
+
+      if (
+        !isValidEmail(
+          normalizedEmail
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            "Please enter a valid email address",
         });
       }
 
       const existingUser =
         await User.findOne({
-          email: normalizedEmail,
+          email:
+            normalizedEmail,
+
           _id: {
             $ne: user._id,
           },
@@ -267,7 +422,8 @@ export const updateProfile = async (
         });
       }
 
-      user.email = normalizedEmail;
+      user.email =
+        normalizedEmail;
     }
 
     await user.save();
@@ -276,18 +432,20 @@ export const updateProfile = async (
       message:
         "Profile updated successfully",
 
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
     console.error(
       "Update profile error:",
       error
     );
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message:
+          "Email already registered",
+      });
+    }
 
     return res.status(500).json({
       message:
@@ -310,9 +468,19 @@ export const changePassword = async (
       newPassword,
     } = req.body;
 
+    const current =
+      String(
+        currentPassword || ""
+      );
+
+    const nextPassword =
+      String(
+        newPassword || ""
+      );
+
     if (
-      !currentPassword ||
-      !newPassword
+      !current ||
+      !nextPassword
     ) {
       return res.status(400).json({
         message:
@@ -320,27 +488,30 @@ export const changePassword = async (
       });
     }
 
-    if (newPassword.length < 6) {
+    if (
+      nextPassword.length < 6
+    ) {
       return res.status(400).json({
         message:
           "New password must be at least 6 characters",
       });
     }
 
-    const user = await User.findById(
-      req.user._id
-    );
+    const user =
+      await User.findById(
+        req.user._id
+      );
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found",
+        message:
+          "User not found",
       });
     }
 
-    // Check current password
     const passwordMatch =
       await comparePassword(
-        currentPassword,
+        current,
         user.password
       );
 
@@ -351,10 +522,9 @@ export const changePassword = async (
       });
     }
 
-    // Prevent same password
     const samePassword =
       await comparePassword(
-        newPassword,
+        nextPassword,
         user.password
       );
 
@@ -366,12 +536,18 @@ export const changePassword = async (
     }
 
     const hashedPassword =
-      await hashPassword(newPassword);
+      await hashPassword(
+        nextPassword
+      );
 
-    user.password = hashedPassword;
+    user.password =
+      hashedPassword;
 
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    user.resetPasswordToken =
+      null;
+
+    user.resetPasswordExpires =
+      null;
 
     await user.save();
 
@@ -401,31 +577,50 @@ export const forgotPassword = async (
   res
 ) => {
   try {
-    const { email } = req.body;
+    const { email } =
+      req.body;
 
-    if (!email) {
+    const normalizedEmail =
+      normalizeEmail(email);
+
+    if (!normalizedEmail) {
       return res.status(400).json({
-        message: "Email is required",
+        message:
+          "Email is required",
       });
     }
 
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
+    if (
+      !isValidEmail(
+        normalizedEmail
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          "Please enter a valid email address",
+      });
+    }
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-    });
+    const genericMessage =
+      "If an account exists with this email, a reset link has been sent";
+
+    const user =
+      await User.findOne({
+        email:
+          normalizedEmail,
+      });
 
     if (!user) {
       return res.status(200).json({
         message:
-          "If an account exists with this email, a reset link has been sent",
+          genericMessage,
       });
     }
 
     const resetToken =
-      crypto.randomBytes(32).toString("hex");
+      crypto
+        .randomBytes(32)
+        .toString("hex");
 
     const hashedResetToken =
       crypto
@@ -437,12 +632,43 @@ export const forgotPassword = async (
       hashedResetToken;
 
     user.resetPasswordExpires =
-      Date.now() + 15 * 60 * 1000;
+      new Date(
+        Date.now() +
+          15 * 60 * 1000
+      );
 
     await user.save();
 
+    const clientUrl =
+      String(
+        process.env.CLIENT_URL ||
+          ""
+      ).replace(
+        /\/$/,
+        ""
+      );
+
+    if (!clientUrl) {
+      console.error(
+        "CLIENT_URL is not configured"
+      );
+
+      user.resetPasswordToken =
+        null;
+
+      user.resetPasswordExpires =
+        null;
+
+      await user.save();
+
+      return res.status(500).json({
+        message:
+          "Password reset service is not configured",
+      });
+    }
+
     const resetUrl =
-      `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+      `${clientUrl}/reset-password/${resetToken}`;
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif;">
@@ -483,15 +709,36 @@ export const forgotPassword = async (
       </div>
     `;
 
-    await sendEmail({
-      to: user.email,
-      subject: "Trestep Password Reset",
-      html: emailHtml,
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject:
+          "Trestep Password Reset",
+        html: emailHtml,
+      });
+    } catch (emailError) {
+      console.error(
+        "Password reset email error:",
+        emailError
+      );
+
+      user.resetPasswordToken =
+        null;
+
+      user.resetPasswordExpires =
+        null;
+
+      await user.save();
+
+      return res.status(500).json({
+        message:
+          "Failed to send password reset email",
+      });
+    }
 
     return res.status(200).json({
       message:
-        "If an account exists with this email, a reset link has been sent",
+        genericMessage,
     });
   } catch (error) {
     console.error(
@@ -515,17 +762,33 @@ export const resetPassword = async (
   res
 ) => {
   try {
-    const { token } = req.params;
+    const { token } =
+      req.params;
 
-    const { password } = req.body;
+    const {
+      password,
+    } = req.body;
 
-    if (!password) {
+    const cleanPassword =
+      String(password || "");
+
+    if (!token) {
       return res.status(400).json({
-        message: "Password is required",
+        message:
+          "Reset token is required",
       });
     }
 
-    if (password.length < 6) {
+    if (!cleanPassword) {
+      return res.status(400).json({
+        message:
+          "Password is required",
+      });
+    }
+
+    if (
+      cleanPassword.length < 6
+    ) {
       return res.status(400).json({
         message:
           "Password must be at least 6 characters",
@@ -538,14 +801,15 @@ export const resetPassword = async (
         .update(token)
         .digest("hex");
 
-    const user = await User.findOne({
-      resetPasswordToken:
-        hashedToken,
+    const user =
+      await User.findOne({
+        resetPasswordToken:
+          hashedToken,
 
-      resetPasswordExpires: {
-        $gt: Date.now(),
-      },
-    });
+        resetPasswordExpires: {
+          $gt: new Date(),
+        },
+      });
 
     if (!user) {
       return res.status(400).json({
@@ -555,12 +819,18 @@ export const resetPassword = async (
     }
 
     const hashedPassword =
-      await hashPassword(password);
+      await hashPassword(
+        cleanPassword
+      );
 
-    user.password = hashedPassword;
+    user.password =
+      hashedPassword;
 
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    user.resetPasswordToken =
+      null;
+
+    user.resetPasswordExpires =
+      null;
 
     await user.save();
 

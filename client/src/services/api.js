@@ -1,9 +1,11 @@
 import axios from "axios";
 
+const apiBaseURL =
+  import.meta.env.VITE_API_URL ||
+  "https://trestep-shoes-store.vercel.app/api";
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api",
+  baseURL: apiBaseURL,
 
   headers: {
     "Content-Type": "application/json",
@@ -12,29 +14,27 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem(
-        "trestepToken"
-      );
+    const token = localStorage.getItem(
+      "trestepToken"
+    );
 
     if (token) {
+      config.headers = config.headers || {};
+
       config.headers.Authorization =
         `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) =>
-    Promise.reject(error)
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
   (response) => response,
 
   (error) => {
-    if (
-      error.response?.status === 401
-    ) {
+    if (error.response?.status === 401) {
       localStorage.removeItem(
         "trestepToken"
       );

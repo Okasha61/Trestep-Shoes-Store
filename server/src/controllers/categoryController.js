@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Category from "../models/Category.js";
 
 import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
@@ -7,50 +8,28 @@ import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 // ======================================================
 
 const escapeRegex = (value = "") => {
-  return value.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-const parseSubCategories = (
-  value,
-  fallback = []
-) => {
-  if (
-    value === undefined ||
-    value === null
-  ) {
+const parseSubCategories = (value, fallback = []) => {
+  if (value === undefined || value === null || value === "") {
     return fallback;
   }
 
   try {
-    const parsed =
-      typeof value === "string"
-        ? JSON.parse(value)
-        : value;
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
 
-    return Array.isArray(parsed)
-      ? parsed
-      : fallback;
+    return Array.isArray(parsed) ? parsed : fallback;
   } catch {
     return fallback;
   }
 };
 
-const getUploadedFile = (
-  req,
-  field
-) => {
-  return (
-    req.files?.[field]?.[0] ||
-    null
-  );
+const getUploadedFile = (req, field) => {
+  return req.files?.[field]?.[0] || null;
 };
 
-const normalizeSubCategory = (
-  item
-) => {
+const normalizeSubCategory = (item) => {
   if (typeof item === "string") {
     return {
       name: item.trim(),
@@ -59,104 +38,50 @@ const normalizeSubCategory = (
     };
   }
 
-  if (
-    !item ||
-    typeof item !== "object"
-  ) {
+  if (!item || typeof item !== "object") {
     return null;
   }
 
   return {
-    name: String(
-      item.name || ""
-    ).trim(),
-
-    description: String(
-      item.description || ""
-    ).trim(),
-
-    image: String(
-      item.image || ""
-    ),
+    name: String(item.name || "").trim(),
+    description: String(item.description || "").trim(),
+    image: String(item.image || "").trim(),
   };
 };
 
-const normalizeSubCategories = (
-  subCategories = []
-) => {
-  const normalized =
-    subCategories
-      .map(normalizeSubCategory)
-      .filter(
-        (item) => item?.name
-      );
+const normalizeSubCategories = (subCategories = []) => {
+  const normalized = subCategories
+    .map(normalizeSubCategory)
+    .filter((item) => item?.name);
 
-  /*
-    Prevent duplicate sub-category names
-    inside the SAME category.
-
-    Example:
-
-    Men + Sports + Cricket
-    Men + Sports + Cricket
-
-    Not allowed.
-
-    But:
-
-    Men + Sports + Cricket
-    Women + Sports + Cricket
-
-    Allowed because they belong to
-    different category documents.
-  */
-
+  // Prevent duplicate sub-category names
+  // inside the same category.
   const seen = new Set();
 
-  return normalized.filter(
-    (item) => {
-      const key =
-        item.name.toLowerCase();
+  return normalized.filter((item) => {
+    const key = item.name.toLowerCase();
 
-      if (seen.has(key)) {
-        return false;
-      }
-
-      seen.add(key);
-
-      return true;
+    if (seen.has(key)) {
+      return false;
     }
-  );
+
+    seen.add(key);
+
+    return true;
+  });
 };
 
 // ======================================================
 // CREATE CATEGORY
 // ======================================================
 
-export const createCategory = async (
-  req,
-  res
-) => {
+export const createCategory = async (req, res) => {
   try {
-    const {
-      name,
-      description,
-      gender,
-      subCategories,
-    } = req.body;
+    const { name, description, gender, subCategories } = req.body;
 
-    const cleanName = String(
-      name || ""
-    ).trim();
-
-    const cleanGender = String(
-      gender || ""
-    ).trim();
-
-    const cleanDescription =
-      String(
-        description || ""
-      ).trim();
+    const cleanName = String(name || "").trim();
+    const cleanGender = String(gender || "").trim();
+    const cleanDescription = String(description || "").trim();
 
     // ==================================================
     // VALIDATION
@@ -164,26 +89,31 @@ export const createCategory = async (
 
     if (!cleanName) {
       return res.status(400).json({
-        message:
-          "Category name is required",
+        message: "Category name is required",
+      });
+    }
+
+    if (cleanName.length > 100) {
+      return res.status(400).json({
+        message: "Category name cannot exceed 100 characters",
       });
     }
 
     if (!cleanGender) {
       return res.status(400).json({
-        message:
-          "Category gender is required",
+        message: "Category gender is required",
       });
     }
 
-    if (
-      !["Men", "Women"].includes(
-        cleanGender
-      )
-    ) {
+    if (!["Men", "Women"].includes(cleanGender)) {
       return res.status(400).json({
-        message:
-          "Gender must be either Men or Women",
+        message: "Gender must be either Men or Women",
+      });
+    }
+
+    if (cleanDescription.length > 300) {
+      return res.status(400).json({
+        message: "Category description cannot exceed 300 characters",
       });
     }
 
@@ -191,31 +121,13 @@ export const createCategory = async (
     // CHECK DUPLICATE CATEGORY
     // ==================================================
 
-    /*
-      IMPORTANT:
-
-      Category uniqueness is based on:
-
-      name + gender
-
-      Therefore:
-
-      Men + Sports
-      Women + Sports
-
-      are different categories.
-    */
-
-    const existingCategory =
-      await Category.findOne({
-        name: {
-          $regex: `^${escapeRegex(
-            cleanName
-          )}$`,
-          $options: "i",
-        },
-        gender: cleanGender,
-      });
+    const existingCategory = await Category.findOne({
+      name: {
+        $regex: `^${escapeRegex(cleanName)}$`,
+        $options: "i",
+      },
+      gender: cleanGender,
+    });
 
     if (existingCategory) {
       return res.status(400).json({
@@ -229,71 +141,69 @@ export const createCategory = async (
 
     let image = "";
 
-    const categoryImage =
-      getUploadedFile(
-        req,
-        "image"
-      );
+    const categoryImage = getUploadedFile(req, "image");
 
     if (categoryImage) {
-      image =
-        await uploadToCloudinary(
-          categoryImage.buffer,
-          "trestep/categories"
-        );
+      image = await uploadToCloudinary(
+        categoryImage.buffer,
+        "trestep/categories"
+      );
     }
 
     // ==================================================
     // SUB CATEGORIES
     // ==================================================
 
-    const parsedSubCategories =
-      normalizeSubCategories(
-        parseSubCategories(
-          subCategories,
-          []
-        )
-      );
+    const parsedSubCategories = normalizeSubCategories(
+      parseSubCategories(subCategories, [])
+    );
+
+    // Validate sub-category descriptions
+    const invalidSubCategory = parsedSubCategories.find(
+      (item) => item.description.length > 300
+    );
+
+    if (invalidSubCategory) {
+      return res.status(400).json({
+        message: `Sub-category "${invalidSubCategory.name}" description cannot exceed 300 characters`,
+      });
+    }
 
     // ==================================================
     // CREATE CATEGORY
     // ==================================================
 
-    const category =
-      await Category.create({
-        name: cleanName,
-        description:
-          cleanDescription,
-        gender: cleanGender,
-        image,
-        subCategories:
-          parsedSubCategories,
-      });
+    const category = await Category.create({
+      name: cleanName,
+      description: cleanDescription,
+      gender: cleanGender,
+      image,
+      subCategories: parsedSubCategories,
+    });
 
     return res.status(201).json({
-      message:
-        "Category created successfully",
-
+      message: "Category created successfully",
       category,
     });
   } catch (error) {
-    console.error(
-      "Create category error:",
-      error
-    );
+    console.error("Create category error:", error);
 
-    // MongoDB duplicate key
     if (error.code === 11000) {
       return res.status(400).json({
-        message:
-          "This category already exists for this gender.",
+        message: "This category already exists for this gender.",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: Object.values(error.errors)
+          .map((item) => item.message)
+          .join(", "),
       });
     }
 
     return res.status(500).json({
-      message:
-        "Failed to create category",
-
+      message: "Failed to create category",
       error: error.message,
     });
   }
@@ -303,31 +213,22 @@ export const createCategory = async (
 // GET CATEGORIES
 // ======================================================
 
-export const getCategories = async (
-  req,
-  res
-) => {
+export const getCategories = async (req, res) => {
   try {
-    const categories =
-      await Category.find({
-        isActive: true,
-      }).sort({
-        createdAt: -1,
-      });
+    const categories = await Category.find({
+      isActive: true,
+    }).sort({
+      createdAt: -1,
+    });
 
     return res.status(200).json({
       categories,
     });
   } catch (error) {
-    console.error(
-      "Get categories error:",
-      error
-    );
+    console.error("Get categories error:", error);
 
     return res.status(500).json({
-      message:
-        "Failed to fetch categories",
-
+      message: "Failed to fetch categories",
       error: error.message,
     });
   }
@@ -337,42 +238,29 @@ export const getCategories = async (
 // UPDATE CATEGORY
 // ======================================================
 
-export const updateCategory = async (
-  req,
-  res
-) => {
+export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {
-      name,
-      description,
-      gender,
-      subCategories,
-    } = req.body;
-
-    const category =
-      await Category.findById(id);
-
-    if (!category) {
-      return res.status(404).json({
-        message:
-          "Category not found",
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
       });
     }
 
-    const cleanName = String(
-      name || ""
-    ).trim();
+    const { name, description, gender, subCategories } = req.body;
 
-    const cleanGender = String(
-      gender || ""
-    ).trim();
+    const category = await Category.findById(id);
 
-    const cleanDescription =
-      String(
-        description || ""
-      ).trim();
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const cleanName = String(name || "").trim();
+    const cleanGender = String(gender || "").trim();
+    const cleanDescription = String(description || "").trim();
 
     // ==================================================
     // VALIDATION
@@ -380,26 +268,31 @@ export const updateCategory = async (
 
     if (!cleanName) {
       return res.status(400).json({
-        message:
-          "Category name is required",
+        message: "Category name is required",
+      });
+    }
+
+    if (cleanName.length > 100) {
+      return res.status(400).json({
+        message: "Category name cannot exceed 100 characters",
       });
     }
 
     if (!cleanGender) {
       return res.status(400).json({
-        message:
-          "Category gender is required",
+        message: "Category gender is required",
       });
     }
 
-    if (
-      !["Men", "Women"].includes(
-        cleanGender
-      )
-    ) {
+    if (!["Men", "Women"].includes(cleanGender)) {
       return res.status(400).json({
-        message:
-          "Gender must be either Men or Women",
+        message: "Gender must be either Men or Women",
+      });
+    }
+
+    if (cleanDescription.length > 300) {
+      return res.status(400).json({
+        message: "Category description cannot exceed 300 characters",
       });
     }
 
@@ -407,37 +300,18 @@ export const updateCategory = async (
     // CHECK DUPLICATE CATEGORY
     // ==================================================
 
-    /*
-      Exclude the current category.
+    const existingCategory = await Category.findOne({
+      _id: {
+        $ne: id,
+      },
 
-      This allows:
+      name: {
+        $regex: `^${escapeRegex(cleanName)}$`,
+        $options: "i",
+      },
 
-      Men + Sports
-      Men + Sports
-
-      when updating the SAME document.
-
-      But it blocks:
-
-      Men + Sports
-      another Men + Sports
-    */
-
-    const existingCategory =
-      await Category.findOne({
-        _id: {
-          $ne: id,
-        },
-
-        name: {
-          $regex: `^${escapeRegex(
-            cleanName
-          )}$`,
-          $options: "i",
-        },
-
-        gender: cleanGender,
-      });
+      gender: cleanGender,
+    });
 
     if (existingCategory) {
       return res.status(400).json({
@@ -451,66 +325,56 @@ export const updateCategory = async (
 
     let parsedSubCategories;
 
-    if (
-      subCategories !==
-      undefined
-    ) {
-      parsedSubCategories =
-        normalizeSubCategories(
-          parseSubCategories(
-            subCategories,
-            []
-          )
-        );
+    if (subCategories !== undefined) {
+      parsedSubCategories = normalizeSubCategories(
+        parseSubCategories(subCategories, [])
+      );
     } else {
-      parsedSubCategories =
-        normalizeSubCategories(
-          category.subCategories ||
-            []
-        );
+      parsedSubCategories = normalizeSubCategories(
+        category.subCategories || []
+      );
+    }
+
+    const invalidSubCategory = parsedSubCategories.find(
+      (item) => item.description.length > 300
+    );
+
+    if (invalidSubCategory) {
+      return res.status(400).json({
+        message: `Sub-category "${invalidSubCategory.name}" description cannot exceed 300 characters`,
+      });
     }
 
     // ==================================================
     // SUB CATEGORY IMAGE
     // ==================================================
 
-    const subCategoryImage =
-      getUploadedFile(
-        req,
-        "subCategoryImage"
-      );
+    const subCategoryImage = getUploadedFile(
+      req,
+      "subCategoryImage"
+    );
 
     /*
-      When adding a new sub-category,
-      frontend sends the new sub-category
-      without an image.
-
-      Upload image and attach it to
-      the newly added sub-category.
+      Existing frontend flow:
+      when a new sub-category is added,
+      the uploaded image belongs to the
+      newly added/last sub-category.
     */
 
     if (
       subCategoryImage &&
-      parsedSubCategories.length
+      parsedSubCategories.length > 0
     ) {
-      const lastIndex =
-        parsedSubCategories.length -
-        1;
+      const lastIndex = parsedSubCategories.length - 1;
 
       const lastSubCategory =
-        parsedSubCategories[
-          lastIndex
-        ];
+        parsedSubCategories[lastIndex];
 
-      if (
-        lastSubCategory &&
-        !lastSubCategory.image
-      ) {
-        lastSubCategory.image =
-          await uploadToCloudinary(
-            subCategoryImage.buffer,
-            "trestep/subcategories"
-          );
+      if (lastSubCategory && !lastSubCategory.image) {
+        lastSubCategory.image = await uploadToCloudinary(
+          subCategoryImage.buffer,
+          "trestep/subcategories"
+        );
       }
     }
 
@@ -518,68 +382,55 @@ export const updateCategory = async (
     // CATEGORY IMAGE
     // ==================================================
 
-    let image =
-      category.image || "";
+    let image = category.image || "";
 
-    const categoryImage =
-      getUploadedFile(
-        req,
-        "image"
-      );
+    const categoryImage = getUploadedFile(
+      req,
+      "image"
+    );
 
     if (categoryImage) {
-      image =
-        await uploadToCloudinary(
-          categoryImage.buffer,
-          "trestep/categories"
-        );
+      image = await uploadToCloudinary(
+        categoryImage.buffer,
+        "trestep/categories"
+      );
     }
 
     // ==================================================
     // UPDATE
     // ==================================================
 
-    category.name =
-      cleanName;
-
-    category.description =
-      cleanDescription;
-
-    category.gender =
-      cleanGender;
-
-    category.image =
-      image;
-
-    category.subCategories =
-      parsedSubCategories;
+    category.name = cleanName;
+    category.description = cleanDescription;
+    category.gender = cleanGender;
+    category.image = image;
+    category.subCategories = parsedSubCategories;
 
     await category.save();
 
     return res.status(200).json({
-      message:
-        "Category updated successfully",
-
+      message: "Category updated successfully",
       category,
     });
   } catch (error) {
-    console.error(
-      "Update category error:",
-      error
-    );
+    console.error("Update category error:", error);
 
-    // MongoDB duplicate key
     if (error.code === 11000) {
       return res.status(400).json({
-        message:
-          "This category already exists for this gender.",
+        message: "This category already exists for this gender.",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: Object.values(error.errors)
+          .map((item) => item.message)
+          .join(", "),
       });
     }
 
     return res.status(500).json({
-      message:
-        "Failed to update category",
-
+      message: "Failed to update category",
       error: error.message,
     });
   }
@@ -589,41 +440,35 @@ export const updateCategory = async (
 // DELETE CATEGORY
 // ======================================================
 
-export const deleteCategory = async (
-  req,
-  res
-) => {
+export const deleteCategory = async (req, res) => {
   try {
-    const { id } =
-      req.params;
+    const { id } = req.params;
 
-    const category =
-      await Category.findById(id);
-
-    if (!category) {
-      return res.status(404).json({
-        message:
-          "Category not found",
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
       });
     }
 
-    await Category.findByIdAndDelete(
-      id
-    );
+    const category = await Category.findById(id);
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    await Category.findByIdAndDelete(id);
 
     return res.status(200).json({
-      message:
-        "Category deleted successfully",
+      message: "Category deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "Delete category error:",
-      error
-    );
+    console.error("Delete category error:", error);
 
     return res.status(500).json({
-      message:
-        "Failed to delete category",
+      message: "Failed to delete category",
+      error: error.message,
     });
   }
 };

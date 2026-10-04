@@ -8,9 +8,7 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(
-      new Error(
-        "Only image files are allowed"
-      ),
+      new Error("Only image files are allowed"),
       false
     );
   }
@@ -18,17 +16,11 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage,
-
   fileFilter,
-
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
 });
-
-// ======================================================
-// CLOUDINARY UPLOAD
-// ======================================================
 
 export const uploadToCloudinary = (
   buffer,
@@ -41,7 +33,6 @@ export const uploadToCloudinary = (
           folder,
           resource_type: "image",
         },
-
         (error, result) => {
           if (error) {
             console.error(
@@ -61,16 +52,8 @@ export const uploadToCloudinary = (
   });
 };
 
-// ======================================================
-// PRODUCT IMAGES
-// ======================================================
-
 export const uploadProductImages =
   upload.array("images", 10);
-
-// ======================================================
-// CATEGORY IMAGE
-// ======================================================
 
 export const uploadCategoryImage =
   upload.fields([
@@ -78,15 +61,10 @@ export const uploadCategoryImage =
       name: "image",
       maxCount: 1,
     },
-
     {
       name: "subCategoryImage",
       maxCount: 1,
     },
   ]);
-
-// ======================================================
-// DEFAULT
-// ======================================================
 
 export default upload;

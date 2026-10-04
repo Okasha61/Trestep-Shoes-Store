@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 import User from "../models/User.js";
 import Product from "../models/Product.js";
 import Order from "../models/Order.js";
@@ -5,9 +7,10 @@ import Blog from "../models/Blog.js";
 
 import { sendEmail } from "../services/emailService.js";
 
-// ===============================
+// ======================================================
 // ADMIN DASHBOARD
-// ===============================
+// ======================================================
+
 export const getDashboardStats = async (
   req,
   res,
@@ -20,65 +23,67 @@ export const getDashboardStats = async (
       totalOrders,
       totalBlogs,
     ] = await Promise.all([
-      // Sirf normal customers count honge
+      // Sirf normal customers
       User.countDocuments({
         role: "user",
       }),
 
-      // Total products
       Product.countDocuments(),
 
-      // Total orders
       Order.countDocuments(),
 
-      // Total blogs
       Blog.countDocuments(),
     ]);
 
-    // ===============================
+    // ==================================================
     // TOTAL REVENUE
-    // Cancelled orders revenue mein
-    // include nahi honge
-    // ===============================
-    const revenueResult = await Order.aggregate([
-      {
-        $match: {
-          orderStatus: {
-            $ne: "Cancelled",
+    // ==================================================
+
+    const revenueResult =
+      await Order.aggregate([
+        {
+          $match: {
+            orderStatus: {
+              $ne: "Cancelled",
+            },
           },
         },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: {
-            $sum: "$total",
+
+        {
+          $group: {
+            _id: null,
+
+            totalRevenue: {
+              $sum: "$total",
+            },
           },
         },
-      },
-    ]);
+      ]);
 
     const totalRevenue =
-      revenueResult[0]?.totalRevenue || 0;
+      revenueResult[0]
+        ?.totalRevenue || 0;
 
-    // ===============================
+    // ==================================================
     // RECENT ORDERS
-    // Latest 5 orders
-    // ===============================
-    const recentOrders = await Order.find()
-      .populate(
-        "user",
-        "username email"
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .limit(5);
+    // ==================================================
 
-    // ===============================
+    const recentOrders =
+      await Order.find()
+        .populate(
+          "user",
+          "username email"
+        )
+        .sort({
+          createdAt: -1,
+        })
+        .limit(5);
+
+    // ==================================================
     // RESPONSE
-    // ===============================
-    res.status(200).json({
+    // ==================================================
+
+    return res.status(200).json({
       success: true,
 
       dashboard: {
@@ -95,28 +100,30 @@ export const getDashboardStats = async (
   }
 };
 
-// ===============================
+// ======================================================
 // GET ALL ORDERS
-// ===============================
+// ======================================================
+
 export const getAllOrders = async (
   req,
   res,
   next
 ) => {
   try {
-    const orders = await Order.find()
-      .populate(
-        "user",
-        "username email"
-      )
-      .populate(
-        "items.product"
-      )
-      .sort({
-        createdAt: -1,
-      });
+    const orders =
+      await Order.find()
+        .populate(
+          "user",
+          "username email"
+        )
+        .populate(
+          "items.product"
+        )
+        .sort({
+          createdAt: -1,
+        });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: orders.length,
       orders,
@@ -126,9 +133,10 @@ export const getAllOrders = async (
   }
 };
 
-// ===============================
+// ======================================================
 // UPDATE ORDER STATUS
-// ===============================
+// ======================================================
+
 export const updateOrderStatus = async (
   req,
   res,
@@ -140,9 +148,10 @@ export const updateOrderStatus = async (
       paymentStatus,
     } = req.body;
 
-    // ===============================
+    // ==================================================
     // VALID ORDER STATUSES
-    // ===============================
+    // ==================================================
+
     const validStatuses = [
       "Pending",
       "Confirmed",
@@ -152,15 +161,33 @@ export const updateOrderStatus = async (
       "Cancelled",
     ];
 
-    // ===============================
-    // NORMALIZE ORDER STATUS
-    // ===============================
-    let normalizedStatus = null;
+    const validPaymentStatuses = [
+      "Pending",
+      "Paid",
+      "Failed",
+    ];
 
-    if (status) {
+    // ==================================================
+    // NORMALIZE ORDER STATUS
+    // ==================================================
+
+    let normalizedStatus =
+      null;
+
+    if (
+      status !== undefined &&
+      status !== null &&
+      String(status).trim()
+    ) {
       const formattedStatus =
-        String(status).charAt(0).toUpperCase() +
-        String(status).slice(1).toLowerCase();
+        String(status)
+          .trim()
+          .charAt(0)
+          .toUpperCase() +
+        String(status)
+          .trim()
+          .slice(1)
+          .toLowerCase();
 
       if (
         !validStatuses.includes(
@@ -178,63 +205,129 @@ export const updateOrderStatus = async (
         formattedStatus;
     }
 
-    // ===============================
+    // ==================================================
+    // PAYMENT STATUS
+    // ==================================================
+
+    let normalizedPaymentStatus =
+      null;
+
+    if (
+      paymentStatus !==
+        undefined &&
+      paymentStatus !== null &&
+      String(paymentStatus).trim()
+    ) {
+      const formattedPaymentStatus =
+        String(paymentStatus)
+          .trim()
+          .charAt(0)
+          .toUpperCase() +
+        String(paymentStatus)
+          .trim()
+          .slice(1)
+          .toLowerCase();
+
+      if (
+        !validPaymentStatuses.includes(
+          formattedPaymentStatus
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid payment status",
+        });
+      }
+
+      normalizedPaymentStatus =
+        formattedPaymentStatus;
+    }
+
+    if (
+      !normalizedStatus &&
+      !normalizedPaymentStatus
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "At least one order field must be provided",
+      });
+    }
+
+    // ==================================================
     // FIND ORDER
-    // ===============================
-    const order = await Order.findById(
-      req.params.id
-    ).populate(
-      "user",
-      "username email"
-    );
+    // ==================================================
+
+    const { id } =
+      req.params;
+
+    if (
+      !mongoose.isValidObjectId(id)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid order ID",
+      });
+    }
+
+    const order =
+      await Order.findById(id).populate(
+        "user",
+        "username email"
+      );
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found",
+        message:
+          "Order not found",
       });
     }
 
-    // ===============================
+    // ==================================================
     // SAVE OLD STATUS
-    // ===============================
+    // ==================================================
+
     const oldStatus =
       order.orderStatus;
 
-    // ===============================
+    // ==================================================
     // UPDATE ORDER STATUS
-    // ===============================
+    // ==================================================
+
     if (normalizedStatus) {
       order.orderStatus =
         normalizedStatus;
     }
 
-    // ===============================
+    // ==================================================
     // UPDATE PAYMENT STATUS
-    // ===============================
-    if (paymentStatus) {
+    // ==================================================
+
+    if (normalizedPaymentStatus) {
       order.paymentStatus =
-        paymentStatus;
+        normalizedPaymentStatus;
     }
 
-    // ===============================
+    // ==================================================
     // SAVE ORDER
-    // ===============================
+    // ==================================================
+
     await order.save();
 
-    // ===============================
-    // SEND EMAIL ONLY WHEN
-    // ORDER STATUS ACTUALLY CHANGES
-    // ===============================
+    // ==================================================
+    // SEND EMAIL ONLY WHEN ORDER
+    // STATUS ACTUALLY CHANGES
+    // ==================================================
+
     if (
       normalizedStatus &&
       oldStatus !== normalizedStatus &&
       order.user?.email
     ) {
       try {
-        // ===============================
-        // STATUS MESSAGES
-        // ===============================
         const statusMessages = {
           Pending:
             "Your order has been received and is currently pending confirmation.",
@@ -261,9 +354,10 @@ export const updateOrderStatus = async (
           ] ||
           "Your order status has been updated.";
 
-        // ===============================
+        // ==================================================
         // PRODUCT ROWS
-        // ===============================
+        // ==================================================
+
         const productRows =
           order.items
             .map(
@@ -342,22 +436,21 @@ export const updateOrderStatus = async (
             )
             .join("");
 
-        // ===============================
+        // ==================================================
         // ORDER STATUS EMAIL
-        // ===============================
+        // ==================================================
+
         const statusEmail = `
           <!DOCTYPE html>
 
           <html>
 
             <head>
-
               <meta charset="UTF-8" />
 
               <title>
                 Trestep Order Update
               </title>
-
             </head>
 
             <body
@@ -380,9 +473,7 @@ export const updateOrderStatus = async (
                 "
               >
 
-                <!-- ========================= -->
                 <!-- HEADER -->
-                <!-- ========================= -->
 
                 <div
                   style="
@@ -414,9 +505,7 @@ export const updateOrderStatus = async (
 
                 </div>
 
-                <!-- ========================= -->
                 <!-- CONTENT -->
-                <!-- ========================= -->
 
                 <div
                   style="
@@ -425,7 +514,11 @@ export const updateOrderStatus = async (
                 >
 
                   <h2>
-                    Hi ${order.user.username},
+                    Hi ${
+                      order.user
+                        ?.username ||
+                      "Customer"
+                    },
                   </h2>
 
                   <p
@@ -437,9 +530,7 @@ export const updateOrderStatus = async (
                     ${statusMessage}
                   </p>
 
-                  <!-- ========================= -->
                   <!-- CURRENT STATUS -->
-                  <!-- ========================= -->
 
                   <div
                     style="
@@ -472,9 +563,7 @@ export const updateOrderStatus = async (
 
                   </div>
 
-                  <!-- ========================= -->
                   <!-- ORDER INFORMATION -->
-                  <!-- ========================= -->
 
                   <div
                     style="
@@ -521,9 +610,7 @@ export const updateOrderStatus = async (
 
                   </div>
 
-                  <!-- ========================= -->
                   <!-- PRODUCTS -->
-                  <!-- ========================= -->
 
                   <h3>
                     Your Products
@@ -586,9 +673,7 @@ export const updateOrderStatus = async (
 
                   </table>
 
-                  <!-- ========================= -->
                   <!-- DELIVERY ADDRESS -->
-                  <!-- ========================= -->
 
                   <div
                     style="
@@ -612,7 +697,8 @@ export const updateOrderStatus = async (
                       ${
                         order
                           .shippingAddress
-                          .fullName
+                          ?.fullName ||
+                        ""
                       }
                     </p>
 
@@ -625,7 +711,8 @@ export const updateOrderStatus = async (
                       ${
                         order
                           .shippingAddress
-                          .phone
+                          ?.phone ||
+                        ""
                       }
                     </p>
 
@@ -638,7 +725,8 @@ export const updateOrderStatus = async (
                       ${
                         order
                           .shippingAddress
-                          .address
+                          ?.address ||
+                        ""
                       }
                     </p>
 
@@ -651,15 +739,14 @@ export const updateOrderStatus = async (
                       ${
                         order
                           .shippingAddress
-                          .city
+                          ?.city ||
+                        ""
                       }
                     </p>
 
                   </div>
 
-                  <!-- ========================= -->
                   <!-- FOOTER MESSAGE -->
-                  <!-- ========================= -->
 
                   <p
                     style="
@@ -674,9 +761,7 @@ export const updateOrderStatus = async (
 
                 </div>
 
-                <!-- ========================= -->
                 <!-- FOOTER -->
-                <!-- ========================= -->
 
                 <div
                   style="
@@ -700,9 +785,10 @@ export const updateOrderStatus = async (
           </html>
         `;
 
-        // ===============================
+        // ==================================================
         // SEND EMAIL
-        // ===============================
+        // ==================================================
+
         await sendEmail({
           to: order.user.email,
 
@@ -717,10 +803,9 @@ export const updateOrderStatus = async (
         console.log(
           `Order status email sent to ${order.user.email}`
         );
-
       } catch (emailError) {
         // Email fail hone par
-        // order update fail nahi hoga
+        // order update fail nahi hoga.
         console.error(
           "Order status email error:",
           emailError
@@ -728,10 +813,11 @@ export const updateOrderStatus = async (
       }
     }
 
-    // ===============================
+    // ==================================================
     // RESPONSE
-    // ===============================
-    res.status(200).json({
+    // ==================================================
+
+    return res.status(200).json({
       success: true,
 
       message:
@@ -739,7 +825,6 @@ export const updateOrderStatus = async (
 
       order,
     });
-
   } catch (error) {
     next(error);
   }

@@ -1,9 +1,27 @@
 import User from "../models/User.js";
-import { hashPassword, comparePassword } from "../utils/hashPassword.js";
+import {
+  hashPassword,
+  comparePassword,
+} from "../utils/hashPassword.js";
 import generateToken from "../utils/generateToken.js";
 
-export const registerUser = async ({ username, email, password }) => {
-  const existingUser = await User.findOne({ email });
+export const registerUser = async ({
+  username,
+  email,
+  password,
+}) => {
+  const normalizedUsername = username?.trim();
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedUsername || !normalizedEmail || !password) {
+    throw new Error(
+      "Username, email and password are required"
+    );
+  }
+
+  const existingUser = await User.findOne({
+    email: normalizedEmail,
+  });
 
   if (existingUser) {
     throw new Error("Email already registered");
@@ -12,8 +30,8 @@ export const registerUser = async ({ username, email, password }) => {
   const hashedPassword = await hashPassword(password);
 
   const user = await User.create({
-    username,
-    email,
+    username: normalizedUsername,
+    email: normalizedEmail,
     password: hashedPassword,
   });
 
@@ -30,8 +48,19 @@ export const registerUser = async ({ username, email, password }) => {
   };
 };
 
-export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email });
+export const loginUser = async ({
+  email,
+  password,
+}) => {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
+    throw new Error("Email and password are required");
+  }
+
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
 
   if (!user) {
     throw new Error("Invalid email or password");

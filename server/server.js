@@ -1,29 +1,30 @@
-import dotenv from "dotenv";
-import dns from "dns";
-
-dotenv.config();
-
-// Fix MongoDB SRV DNS resolution issue
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
+import "dotenv/config";
 
 import app from "./src/app.js";
 import connectDB from "./src/config/db.js";
 
-// Global flag to prevent multiple DB connections
-let isConnected = false;
+let dbConnectionPromise = null;
 
 const handler = async (req, res) => {
   try {
-    if (!isConnected) {
-      await connectDB();
-      isConnected = true;
-      console.log("Database connected");
+    if (!dbConnectionPromise) {
+      dbConnectionPromise = connectDB();
     }
 
-    return app(req, res); // Express app handle request
+    await dbConnectionPromise;
+
+    return app(req, res);
   } catch (error) {
     console.error("Server error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+
+    // Allow another request to retry the connection
+    // if the previous connection attempt failed.
+    dbConnectionPromise = null;
+
+    return res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+    });
   }
 };
 

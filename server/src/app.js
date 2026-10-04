@@ -13,23 +13,56 @@ import blogRoutes from "./routes/blogRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 
+import errorMiddleware from "./middleware/errorMiddleware.js";
+
 const app = express();
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://trestep-shoes-store-pqta.vercel.app",
+];
+
+if (process.env.CLIENT_URL) {
+  allowedOrigins.push(
+    process.env.CLIENT_URL.replace(/\/$/, "")
+  );
+}
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://trestep-shoes-store-pqta.vercel.app",
-    ],
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header
+      // such as server-to-server requests.
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(
+        new Error("Not allowed by CORS")
+      );
+    },
     credentials: true,
   })
 );
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
 
 app.get("/api/test", (req, res) => {
-  res.json({ message: "working" });
+  res.json({
+    success: true,
+    message: "Trestep backend is working",
+  });
 });
 
 app.use("/api/auth", authRoutes);
@@ -44,13 +77,6 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 
-app.use((err, req, res, next) => {
-  console.error(err);
-
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Server error",
-  });
-});
+app.use(errorMiddleware);
 
 export default app;
