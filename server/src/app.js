@@ -17,40 +17,29 @@ import errorMiddleware from "./middleware/errorMiddleware.js";
 
 const app = express();
 
+/*
+ * Frontend URLs allowed to access this backend.
+ */
 const allowedOrigins = [
   "http://localhost:5173",
   "https://trestep-shoes-store-pqta.vercel.app",
 ];
 
-if (process.env.CLIENT_URL) {
-  const clientUrl = process.env.CLIENT_URL
-    .trim()
-    .replace(/\/$/, "");
-
-  if (!allowedOrigins.includes(clientUrl)) {
-    allowedOrigins.push(clientUrl);
-  }
-}
-
+/*
+ * CORS configuration
+ */
 const corsOptions = {
   origin: (origin, callback) => {
-    // Requests without an Origin header are allowed.
-    // This is useful for tools/server-to-server requests.
+    // Allow requests that do not have an Origin header.
     if (!origin) {
       return callback(null, true);
     }
 
-    const normalizedOrigin = origin
-      .trim()
-      .replace(/\/$/, "");
-
-    if (allowedOrigins.includes(normalizedOrigin)) {
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    console.error(
-      `CORS blocked origin: ${normalizedOrigin}`
-    );
+    console.error("Blocked CORS origin:", origin);
 
     return callback(
       new Error("Not allowed by CORS")
@@ -76,23 +65,25 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+/*
+ * Apply CORS before all API routes.
+ */
 app.use(cors(corsOptions));
 
 /*
- * Explicitly handle CORS preflight requests.
- * Express 5 requires a RegExp instead of "*"
- * for a catch-all OPTIONS route.
+ * Body parsers
  */
-app.options(/.*/, cors(corsOptions));
-
 app.use(express.json());
+
 app.use(
   express.urlencoded({
     extended: true,
   })
 );
 
-/* Test endpoint */
+/*
+ * Health/test endpoint
+ */
 app.get("/api/test", (req, res) => {
   res.json({
     success: true,
@@ -100,7 +91,9 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-/* API routes */
+/*
+ * API routes
+ */
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
@@ -113,7 +106,9 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 
-/* Global error handler */
+/*
+ * Global error handler
+ */
 app.use(errorMiddleware);
 
 export default app;
