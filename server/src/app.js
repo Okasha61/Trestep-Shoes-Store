@@ -23,33 +23,67 @@ const allowedOrigins = [
 ];
 
 if (process.env.CLIENT_URL) {
-  allowedOrigins.push(
-    process.env.CLIENT_URL.replace(/\/$/, "")
-  );
+  const clientUrl = process.env.CLIENT_URL
+    .trim()
+    .replace(/\/$/, "");
+
+  if (!allowedOrigins.includes(clientUrl)) {
+    allowedOrigins.push(clientUrl);
+  }
 }
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests without an Origin header
-      // such as server-to-server requests.
-      if (!origin) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Requests without an Origin header are allowed.
+    // This is useful for tools/server-to-server requests.
+    if (!origin) {
+      return callback(null, true);
+    }
 
-      const normalizedOrigin = origin.replace(/\/$/, "");
+    const normalizedOrigin = origin
+      .trim()
+      .replace(/\/$/, "");
 
-      if (allowedOrigins.includes(normalizedOrigin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
 
-      return callback(
-        new Error("Not allowed by CORS")
-      );
-    },
-    credentials: true,
-  })
-);
+    console.error(
+      `CORS blocked origin: ${normalizedOrigin}`
+    );
+
+    return callback(
+      new Error("Not allowed by CORS")
+    );
+  },
+
+  credentials: true,
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+  ],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+  ],
+
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+/*
+ * Explicitly handle CORS preflight requests.
+ * Express 5 requires a RegExp instead of "*"
+ * for a catch-all OPTIONS route.
+ */
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 app.use(
@@ -58,6 +92,7 @@ app.use(
   })
 );
 
+/* Test endpoint */
 app.get("/api/test", (req, res) => {
   res.json({
     success: true,
@@ -65,6 +100,7 @@ app.get("/api/test", (req, res) => {
   });
 });
 
+/* API routes */
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
@@ -77,6 +113,7 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 
+/* Global error handler */
 app.use(errorMiddleware);
 
 export default app;
