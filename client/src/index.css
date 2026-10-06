@@ -1715,20 +1715,24 @@ select:focus {
 
 
 /* =========================================================
-   TABLET
+   DESKTOP SEARCH
 ========================================================= */
 
-@media (max-width: 1100px) {
+@media (min-width: 1025px) {
+  .navbar-search {
+    display: flex !important;
+  }
+
   .navbar-search-form {
-    width: 280px;
+    width: 330px;
   }
 }
 
 
 /* =========================================================
-   TABLET NAVBAR POSITIONING
-   Search remains visible on tablet and stays close
-   to the profile/action icons.
+   TABLET
+   769px - 1024px
+   ONLY SEARCH ICON
 ========================================================= */
 
 @media (min-width: 769px) and (max-width: 1024px) {
@@ -1740,30 +1744,38 @@ select:focus {
     gap: 12px;
   }
 
+  .navbar-actions {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
   .navbar-search {
     display: flex !important;
 
-    margin-left: auto;
-    margin-right: 0;
+    position: relative;
+
+    margin: 0;
 
     flex-shrink: 0;
   }
 
-  .navbar-search-form {
-    width: 200px;
+  /* Hide expanded search box on tablet */
+  .navbar-search-form,
+  .navbar-search-close {
+    display: none !important;
   }
 
-  .navbar-actions {
-    gap: 2px;
-
-    flex-shrink: 0;
+  /* Show only search icon */
+  .navbar-search > .nav-icon {
+    display: inline-flex !important;
   }
 }
 
 
 /* =========================================================
    MOBILE
-   Search is completely hidden on mobile.
+   768px AND BELOW
+   SEARCH COMPLETELY HIDDEN
 ========================================================= */
 
 @media (max-width: 768px) {
