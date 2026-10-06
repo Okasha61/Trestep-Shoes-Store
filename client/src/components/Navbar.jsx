@@ -29,32 +29,24 @@ import { useAuth } from "../hooks/useAuth";
 import { useWishlist } from "../hooks/useWishlist";
 
 function Navbar() {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
-  const [accountOpen, setAccountOpen] =
-    useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   // ======================================================
   // SEARCH STATE
   // ======================================================
 
-  const [searchOpen, setSearchOpen] =
-    useState(false);
-
-  const [searchQuery, setSearchQuery] =
-    useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const accountRef = useRef(null);
-
   const searchInputRef = useRef(null);
 
   const navigate = useNavigate();
 
   const { totalItems } = useCart();
 
-  const { wishlistCount } =
-    useWishlist();
+  const { wishlistCount } = useWishlist();
 
   const {
     user,
@@ -98,9 +90,7 @@ function Navbar() {
     const handleOutsideClick = (event) => {
       if (
         accountRef.current &&
-        !accountRef.current.contains(
-          event.target
-        )
+        !accountRef.current.contains(event.target)
       ) {
         setAccountOpen(false);
       }
@@ -160,8 +150,7 @@ function Navbar() {
   const handleSearchSubmit = (event) => {
     event.preventDefault();
 
-    const query =
-      searchQuery.trim();
+    const query = searchQuery.trim();
 
     if (!query) {
       searchInputRef.current?.focus();
@@ -170,7 +159,9 @@ function Navbar() {
 
     // Normalize search text
     const normalizedQuery =
-      query.toLowerCase().replace(/\s+/g, " ");
+      query
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 
     // ==================================================
     // DIRECT GENDER SEARCH
@@ -195,9 +186,7 @@ function Navbar() {
     handleCloseSearch();
 
     navigate(
-      `/search?query=${encodeURIComponent(
-        query
-      )}`
+      `/search?query=${encodeURIComponent(query)}`
     );
   };
 
@@ -306,6 +295,7 @@ function Navbar() {
 
   const handleNavigation = () => {
     closeMenus();
+
     setSearchOpen(false);
     setSearchQuery("");
   };
@@ -339,9 +329,7 @@ function Navbar() {
             <NavLink
               key={link.name}
               to={link.path}
-              onClick={
-                handleNavigation
-              }
+              onClick={handleNavigation}
               className={({ isActive }) =>
                 isActive
                   ? "nav-link active"
@@ -364,11 +352,18 @@ function Navbar() {
           ================================================== */}
 
           <div
-            className={`navbar-search ${
-              searchOpen
-                ? "navbar-search-open"
-                : ""
-            }`}
+            className={`
+              navbar-search
+              hidden
+              md:block
+              md:-mr-2
+              lg:mr-0
+              ${
+                searchOpen
+                  ? "navbar-search-open"
+                  : ""
+              }
+            `}
           >
             {!searchOpen ? (
               <button
@@ -376,9 +371,7 @@ function Navbar() {
                 className="nav-icon"
                 title="Search"
                 aria-label="Open search"
-                onClick={
-                  handleSearchToggle
-                }
+                onClick={handleSearchToggle}
               >
                 <FiSearch />
               </button>
@@ -388,9 +381,7 @@ function Navbar() {
 
                 <form
                   className="navbar-search-form"
-                  onSubmit={
-                    handleSearchSubmit
-                  }
+                  onSubmit={handleSearchSubmit}
                 >
                   <FiSearch className="navbar-search-icon" />
 
@@ -414,9 +405,7 @@ function Navbar() {
                     <button
                       type="button"
                       className="navbar-search-clear"
-                      onClick={
-                        handleClearSearch
-                      }
+                      onClick={handleClearSearch}
                       aria-label="Clear search"
                     >
                       <FiX />
@@ -431,9 +420,7 @@ function Navbar() {
                   className="navbar-search-close"
                   title="Close search"
                   aria-label="Close search"
-                  onClick={
-                    handleCloseSearch
-                  }
+                  onClick={handleCloseSearch}
                 >
                   <FiX />
                 </button>
@@ -451,9 +438,7 @@ function Navbar() {
           >
             <button
               type="button"
-              onClick={
-                handleAccountToggle
-              }
+              onClick={handleAccountToggle}
               className="nav-icon"
               title={
                 isAuthenticated
@@ -477,7 +462,6 @@ function Navbar() {
                   {/* User Information */}
 
                   <div className="border-b border-white/10 px-5 py-4">
-
                     <p className="truncate text-base font-bold text-white">
                       {user?.username ||
                         "User"}
@@ -498,9 +482,7 @@ function Navbar() {
 
                   <button
                     type="button"
-                    onClick={
-                      handleMyOrders
-                    }
+                    onClick={handleMyOrders}
                     className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-semibold text-gray-300 transition hover:bg-white/5 hover:text-white"
                   >
                     <FiPackage className="text-lg text-lime-400" />
@@ -532,9 +514,7 @@ function Navbar() {
 
                   <button
                     type="button"
-                    onClick={
-                      handleLogout
-                    }
+                    onClick={handleLogout}
                     className="flex w-full items-center gap-3 border-t border-white/10 px-5 py-3 text-left text-sm font-semibold text-red-400 transition hover:bg-red-500/5"
                   >
                     <FiLogOut className="text-lg" />
@@ -555,9 +535,7 @@ function Navbar() {
             to="/wishlist"
             className="nav-icon cart-icon"
             title="Wishlist"
-            onClick={
-              handleNavigation
-            }
+            onClick={handleNavigation}
           >
             <FiHeart />
 
@@ -576,9 +554,7 @@ function Navbar() {
             to="/cart"
             className="nav-icon cart-icon"
             title="Cart"
-            onClick={
-              handleNavigation
-            }
+            onClick={handleNavigation}
           >
             <FiShoppingBag />
 
@@ -594,9 +570,7 @@ function Navbar() {
           <button
             type="button"
             className="mobile-menu-btn"
-            onClick={
-              handleMobileMenu
-            }
+            onClick={handleMobileMenu}
             aria-label="Toggle menu"
           >
             {menuOpen ? (
@@ -621,9 +595,7 @@ function Navbar() {
             <NavLink
               key={link.name}
               to={link.path}
-              onClick={
-                handleNavigation
-              }
+              onClick={handleNavigation}
               className={({ isActive }) =>
                 isActive
                   ? "mobile-nav-link active"
@@ -634,28 +606,16 @@ function Navbar() {
             </NavLink>
           ))}
 
-          {/* Search */}
-
-          <button
-            type="button"
-            onClick={() => {
-              setMenuOpen(false);
-              setAccountOpen(false);
-              setSearchOpen(true);
-            }}
-            className="mobile-nav-link text-left"
-          >
-            Search
-          </button>
+          {/* ==================================================
+              SEARCH REMOVED FROM MOBILE
+          ================================================== */}
 
           {/* My Orders */}
 
           {isAuthenticated && (
             <button
               type="button"
-              onClick={
-                handleMyOrders
-              }
+              onClick={handleMyOrders}
               className="mobile-nav-link text-left"
             >
               My Orders
@@ -682,9 +642,7 @@ function Navbar() {
           {isAuthenticated && (
             <button
               type="button"
-              onClick={
-                handleLogout
-              }
+              onClick={handleLogout}
               className="mobile-nav-link text-left"
             >
               Logout
