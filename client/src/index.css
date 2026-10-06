@@ -1561,6 +1561,7 @@ select:focus {
   }
 }
 
+
 /* =========================================================
    NAVBAR SEARCH
 ========================================================= */
@@ -1631,6 +1632,7 @@ select:focus {
   color: #777777;
 }
 
+
 /* =========================================================
    CLEAR INPUT
 ========================================================= */
@@ -1666,6 +1668,7 @@ select:focus {
 .navbar-search-clear:hover {
   color: #ffffff;
 }
+
 
 /* =========================================================
    CLOSE SEARCH
@@ -1709,6 +1712,7 @@ select:focus {
   transform: scale(1.05);
 }
 
+
 /* =========================================================
    TABLET
 ========================================================= */
@@ -1719,62 +1723,33 @@ select:focus {
   }
 }
 
+
 /* =========================================================
    MOBILE
 ========================================================= */
 
 @media (max-width: 768px) {
-  .navbar-search {
-    position: absolute;
 
-    left: 50%;
+  /* =====================================================
+     HIDE NAVBAR SEARCH COMPLETELY ON MOBILE
+     
+     Search icon + opened search form + close button
+     will all be hidden below 768px.
+  ===================================================== */
 
-    transform: translateX(-50%);
-
-    z-index: 1200;
-  }
-
-  .navbar-search-form {
-    width: 280px;
-
-    height: 38px;
-  }
-
-  .navbar-search-form input {
-    font-size: 12px;
+  .mobile-search {
+    display: none !important;
   }
 }
+
 
 /* =========================================================
    SMALL MOBILE
 ========================================================= */
 
 @media (max-width: 480px) {
-  .navbar-search-form {
-    width: calc(100vw - 95px);
 
-    height: 36px;
+  /* Search is already hidden on mobile.
+     No additional search styling is required here. */
 
-    padding: 0 9px;
-  }
-
-  .navbar-search-form input {
-    font-size: 11px;
-  }
-
-  .navbar-search-icon {
-    font-size: 16px;
-
-    margin-right: 6px;
-  }
-
-  .navbar-search-close {
-    width: 25px;
-
-    height: 25px;
-
-    margin-left: 4px;
-
-    font-size: 17px;
-  }
 }
