@@ -1570,6 +1570,7 @@ select:focus {
   display: flex;
   align-items: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .navbar-search-form {
@@ -1725,32 +1726,36 @@ select:focus {
 
 
 /* =========================================================
-   TABLET NAVBAR
+   TABLET NAVBAR POSITIONING
+   Search remains visible on tablet and stays close
+   to the profile/action icons.
 ========================================================= */
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .navbar-container {
-    gap: 12px;
+    gap: 10px;
   }
 
   .desktop-nav {
-    gap: 14px;
+    gap: 12px;
   }
 
   .navbar-search {
-    display: flex;
-    position: relative;
+    display: flex !important;
+
     margin-left: auto;
     margin-right: 0;
+
     flex-shrink: 0;
   }
 
   .navbar-search-form {
-    width: 220px;
+    width: 200px;
   }
 
   .navbar-actions {
-    gap: 3px;
+    gap: 2px;
+
     flex-shrink: 0;
   }
 }
@@ -1758,12 +1763,12 @@ select:focus {
 
 /* =========================================================
    MOBILE
-   Search hidden only on mobile
+   Search is completely hidden on mobile.
 ========================================================= */
 
 @media (max-width: 768px) {
   .navbar-search {
-    display: none;
+    display: none !important;
   }
 }
 
@@ -1774,6 +1779,6 @@ select:focus {
 
 @media (max-width: 480px) {
   .navbar-search {
-    display: none;
+    display: none !important;
   }
 }
