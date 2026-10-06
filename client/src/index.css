@@ -1561,7 +1561,6 @@ select:focus {
   }
 }
 
-
 /* =========================================================
    NAVBAR SEARCH
 ========================================================= */
@@ -1570,7 +1569,6 @@ select:focus {
   display: flex;
   align-items: center;
   position: relative;
-  flex-shrink: 0;
 }
 
 .navbar-search-form {
@@ -1633,7 +1631,6 @@ select:focus {
   color: #777777;
 }
 
-
 /* =========================================================
    CLEAR INPUT
 ========================================================= */
@@ -1669,7 +1666,6 @@ select:focus {
 .navbar-search-clear:hover {
   color: #ffffff;
 }
-
 
 /* =========================================================
    CLOSE SEARCH
@@ -1713,84 +1709,72 @@ select:focus {
   transform: scale(1.05);
 }
 
-
-/* =========================================================
-   DESKTOP SEARCH
-========================================================= */
-
-@media (min-width: 1025px) {
-  .navbar-search {
-    display: flex !important;
-  }
-
-  .navbar-search-form {
-    width: 330px;
-  }
-}
-
-
 /* =========================================================
    TABLET
-   769px - 1024px
-   ONLY SEARCH ICON
 ========================================================= */
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .navbar-container {
-    gap: 10px;
-  }
-
-  .desktop-nav {
-    gap: 12px;
-  }
-
-  .navbar-actions {
-    gap: 2px;
-    flex-shrink: 0;
-  }
-
-  .navbar-search {
-    display: flex !important;
-
-    position: relative;
-
-    margin: 0;
-
-    flex-shrink: 0;
-  }
-
-  /* Hide expanded search box on tablet */
-  .navbar-search-form,
-  .navbar-search-close {
-    display: none !important;
-  }
-
-  /* Show only search icon */
-  .navbar-search > .nav-icon {
-    display: inline-flex !important;
+@media (max-width: 1100px) {
+  .navbar-search-form {
+    width: 280px;
   }
 }
-
 
 /* =========================================================
    MOBILE
-   768px AND BELOW
-   SEARCH COMPLETELY HIDDEN
 ========================================================= */
 
 @media (max-width: 768px) {
   .navbar-search {
-    display: none !important;
+    position: absolute;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    z-index: 1200;
+  }
+
+  .navbar-search-form {
+    width: 280px;
+
+    height: 38px;
+  }
+
+  .navbar-search-form input {
+    font-size: 12px;
   }
 }
-
 
 /* =========================================================
    SMALL MOBILE
 ========================================================= */
 
 @media (max-width: 480px) {
-  .navbar-search {
-    display: none !important;
+  .navbar-search-form {
+    width: calc(100vw - 95px);
+
+    height: 36px;
+
+    padding: 0 9px;
+  }
+
+  .navbar-search-form input {
+    font-size: 11px;
+  }
+
+  .navbar-search-icon {
+    font-size: 16px;
+
+    margin-right: 6px;
+  }
+
+  .navbar-search-close {
+    width: 25px;
+
+    height: 25px;
+
+    margin-left: 4px;
+
+    font-size: 17px;
   }
 }
