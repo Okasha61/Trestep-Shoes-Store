@@ -361,10 +361,13 @@ function Navbar() {
 
           {/* ==================================================
               SEARCH
+              
+              Search remains available on desktop/tablet.
+              CSS can hide .mobile-search on mobile.
           ================================================== */}
 
           <div
-            className={`navbar-search ${
+            className={`navbar-search mobile-search ${
               searchOpen
                 ? "navbar-search-open"
                 : ""
@@ -634,19 +637,11 @@ function Navbar() {
             </NavLink>
           ))}
 
-          {/* Search */}
-
-          <button
-            type="button"
-            onClick={() => {
-              setMenuOpen(false);
-              setAccountOpen(false);
-              setSearchOpen(true);
-            }}
-            className="mobile-nav-link text-left"
-          >
-            Search
-          </button>
+          {/* ==================================================
+              SEARCH REMOVED FROM MOBILE MENU
+              
+              Search is intentionally not shown here.
+          ================================================== */}
 
           {/* My Orders */}
 
