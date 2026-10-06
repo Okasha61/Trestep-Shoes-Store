@@ -1728,7 +1728,7 @@ select:focus {
    MOBILE
 ========================================================= */
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
 
   /* =====================================================
      HIDE NAVBAR SEARCH COMPLETELY ON MOBILE
