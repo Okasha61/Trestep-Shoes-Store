@@ -352,18 +352,11 @@ function Navbar() {
           ================================================== */}
 
           <div
-            className={`
-              navbar-search
-              hidden
-              md:block
-              md:-mr-2
-              lg:mr-0
-              ${
-                searchOpen
-                  ? "navbar-search-open"
-                  : ""
-              }
-            `}
+            className={`navbar-search ${
+              searchOpen
+                ? "navbar-search-open"
+                : ""
+            }`}
           >
             {!searchOpen ? (
               <button
