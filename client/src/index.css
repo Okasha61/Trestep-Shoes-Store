@@ -1725,8 +1725,7 @@ select:focus {
 
 
 /* =========================================================
-   TABLET NAVBAR POSITIONING
-   Search stays close to the profile/action icons.
+   TABLET NAVBAR
 ========================================================= */
 
 @media (min-width: 769px) and (max-width: 1024px) {
@@ -1739,8 +1738,11 @@ select:focus {
   }
 
   .navbar-search {
-    margin-left: 0;
+    display: flex;
+    position: relative;
+    margin-left: auto;
     margin-right: 0;
+    flex-shrink: 0;
   }
 
   .navbar-search-form {
@@ -1749,9 +1751,21 @@ select:focus {
 
   .navbar-actions {
     gap: 3px;
+    flex-shrink: 0;
   }
 }
 
+
+/* =========================================================
+   MOBILE
+   Search hidden only on mobile
+========================================================= */
+
+@media (max-width: 768px) {
+  .navbar-search {
+    display: none;
+  }
+}
 
 /* =========================================================
    MOBILE
